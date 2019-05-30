@@ -177,7 +177,7 @@ namespace IISLogCleaner
         /// <returns></returns>
         private bool LowDiskThresholdCrossed()
         {
-            var di = new DirectoryInfo(Environment.ExpandEnvironmentVariables(_rootLogSearchDirectory));
+            var di = new DirectoryInfo(_rootLogSearchDirectory);
             
             long diskSpaceInMB=0;
             try
