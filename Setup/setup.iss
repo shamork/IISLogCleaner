@@ -15,11 +15,11 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={pf}\{#MyAppName}
+DefaultDirName=auto
 DisableDirPage=false
 ;DefaultGroupName=IIS Log Cleaner
 ;DisableProgramGroupPage=yes
-OutputBaseFilename=setup
+OutputBaseFilename={#MyAppName}Setup
 Compression=lzma
 SolidCompression=yes
 
