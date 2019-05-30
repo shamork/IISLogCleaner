@@ -35,11 +35,8 @@ namespace IISLogCleaner
 
         protected override void OnStart(string[] args)
         {
-            //Debug point
-            //Thread.Sleep(30000);
-
             TimerCallback tcb = DoWork;
-            _workTimer = new Timer(tcb, new object(), _intervalInMinutes*60*1000, _intervalInMinutes*60*1000);
+            _workTimer = new Timer(tcb, new object(), 0, _intervalInMinutes*60*1000);
             CheckForTimerChange();
 
             base.OnStart(args);
@@ -59,30 +56,37 @@ namespace IISLogCleaner
         /// <param name="state">The state provided by the timer callback</param>
         private void DoWork(object state)
         {
-            CheckForDirectoryChange();
-            CheckForLogDaysChange();
-            CheckForLowDiskThresholdChange();
-            
-            if (Directory.Exists(_rootLogSearchDirectory))
+            try
             {
-                foreach (string path in Directory.GetFileSystemEntries(_rootLogSearchDirectory, "*.log", SearchOption.AllDirectories).OrderBy(File.GetLastAccessTimeUtc))
+                CheckForDirectoryChange();
+                CheckForLogDaysChange();
+                CheckForLowDiskThresholdChange();
+
+                if (Directory.Exists(_rootLogSearchDirectory))
                 {
-                    if (File.Exists(path) && (File.GetLastWriteTimeUtc(path) < DateTime.UtcNow.AddDays(_logDaysToKeep*-1) || LowDiskThresholdCrossed()))
+                    foreach (string path in Directory.GetFileSystemEntries(_rootLogSearchDirectory, "*.log", SearchOption.AllDirectories).OrderBy(File.GetLastAccessTimeUtc))
                     {
-                        try
+                        if (File.Exists(path) && (File.GetLastWriteTimeUtc(path) < DateTime.UtcNow.AddDays(_logDaysToKeep * -1) || LowDiskThresholdCrossed()))
                         {
-                            File.Delete(path);
-                        }
-                        catch
-                        {
-                            //For some reason we can't delete this. Let's leave it alone 
-                            _eventLog.WriteEntry("Error deleting log file: " + path, EventLogEntryType.Error);
+                            try
+                            {
+                                File.Delete(path);
+                            }
+                            catch(Exception ex)
+                            {
+                                //For some reason we can't delete this. Let's leave it alone 
+                                _eventLog.WriteEntry("Error deleting log file: " + path + ". ex:"+ex, EventLogEntryType.Error);
+                            }
                         }
                     }
-                }  
-            }
+                }
 
-            CheckForTimerChange();
+                CheckForTimerChange();
+            }
+            catch (Exception ex2)
+            {
+                _eventLog.WriteEntry("Error DoWork. " + " ex:" + ex2, EventLogEntryType.Error);
+            }
         }
 
         /// <summary>
@@ -102,6 +106,7 @@ namespace IISLogCleaner
 
             if (tmpMinutes != _intervalInMinutes)
             {
+                LogConfigChangeMsg("CheckIntervalMinutes", _intervalInMinutes, tmpMinutes);
                 _intervalInMinutes = tmpMinutes;
                 _workTimer.Change(_intervalInMinutes*60*1000, _intervalInMinutes*60*1000);
             }
@@ -112,6 +117,7 @@ namespace IISLogCleaner
         /// </summary>
         private void CheckForLogDaysChange()
         {
+            var raw = _logDaysToKeep;
             try
             {
                 _logDaysToKeep = Convert.ToInt32(ConfigurationManager.AppSettings["DaysToKeep"]);
@@ -120,6 +126,7 @@ namespace IISLogCleaner
             {
                 _logDaysToKeep = 7;
             }
+            LogConfigChangeMsg("DaysToKeep", raw, _logDaysToKeep);
         }
 
         /// <summary>
@@ -127,6 +134,7 @@ namespace IISLogCleaner
         /// </summary>
         private void CheckForLowDiskThresholdChange()
         {
+            var raw = _lowDiskThreshold;
             try
             {
                 _lowDiskThreshold = Convert.ToInt32(ConfigurationManager.AppSettings["LowDiskThresholdMB"]);
@@ -135,6 +143,7 @@ namespace IISLogCleaner
             {
                 _lowDiskThreshold = 1000;
             }
+            LogConfigChangeMsg("LowDiskThresholdMB", raw, _lowDiskThreshold);
         }
 
         /// <summary>
@@ -142,6 +151,7 @@ namespace IISLogCleaner
         /// </summary>
         private void CheckForDirectoryChange()
         {
+            var raw = _rootLogSearchDirectory;
             try
             {
                 _rootLogSearchDirectory = Environment.ExpandEnvironmentVariables(ConfigurationManager.AppSettings["RootLogSearchDirectory"]);
@@ -149,6 +159,15 @@ namespace IISLogCleaner
             catch
             {
                 _rootLogSearchDirectory = Environment.ExpandEnvironmentVariables(@"%SystemDrive%\inetpub\logs");
+            }
+            LogConfigChangeMsg("RootLogSearchDirectory", raw, _rootLogSearchDirectory);
+        }
+
+        private static void LogConfigChangeMsg<T>(string configName,T rawValue,T newValue)
+        {
+            if (Equals(rawValue,newValue))
+            {
+                _eventLog.WriteEntry($"{configName} Change From {rawValue} To {newValue}", EventLogEntryType.Information);
             }
         }
 
@@ -158,11 +177,20 @@ namespace IISLogCleaner
         /// <returns></returns>
         private bool LowDiskThresholdCrossed()
         {
-            DriveInfo[] disks = DriveInfo.GetDrives();
-            long diskSpaceInMB =
-                disks
-                    .First(x => _rootLogSearchDirectory.Contains(x.Name))
-                    .AvailableFreeSpace / 1024 / 1024;
+            var di = new DirectoryInfo(Environment.ExpandEnvironmentVariables(_rootLogSearchDirectory));
+            
+            long diskSpaceInMB=0;
+            try
+            {
+                var disks = DriveInfo.GetDrives();
+                diskSpaceInMB = (disks.First(x => di.Root.Name == x.Name).AvailableFreeSpace) / 1024 / 1024;
+            }
+            catch (Exception ex)
+            {
+                _eventLog.WriteEntry(
+                    $"LowDiskThreshold Check Failed Root:{di.Root.Name} raw path:{_rootLogSearchDirectory} path:{di.FullName} ex:{ex}",
+                    EventLogEntryType.Error);
+            }
 
             return diskSpaceInMB < _lowDiskThreshold;
         }
