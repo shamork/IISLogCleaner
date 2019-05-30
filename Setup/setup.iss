@@ -3,7 +3,7 @@
 
 #define MyAppName "IISLogCleaner"
 #define MyAppVersion "1.0"
-#define MyAppPublisher "Josh Turpen"
+#define MyAppPublisher "Shamork"
 #define MyAppExeName "IISLogCleaner.exe"
 
 [Setup]
@@ -16,7 +16,7 @@ AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={pf}\{#MyAppName}
-DisableDirPage=yes
+DisableDirPage=false
 ;DefaultGroupName=IIS Log Cleaner
 ;DisableProgramGroupPage=yes
 OutputBaseFilename=setup
@@ -27,9 +27,9 @@ SolidCompression=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "C:\Projects\IISLogCleaner\IISLogCleaner\bin\Release\IISLogCleaner.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Projects\IISLogCleaner\IISLogCleaner\bin\Release\IISLogCleaner.exe.config"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Projects\IISLogCleaner\IISLogCleaner\bin\Release\IISLogCleaner.pdb"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\IISLogCleaner\bin\Release\IISLogCleaner.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\IISLogCleaner\bin\Release\IISLogCleaner.exe.config"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\IISLogCleaner\bin\Release\IISLogCleaner.pdb"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Run]
