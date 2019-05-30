@@ -20,7 +20,7 @@ namespace IISLogCleaner
         private static long _lowDiskThreshold = 1000;
 
         private Timer _workTimer;
-        private static EventLog _eventLog = new EventLog();
+        private EventLog _eventLog => EventLog;
         
         public Service()
         {
@@ -32,9 +32,13 @@ namespace IISLogCleaner
 
             InitializeComponent();
         }
-
+        
+        private string[] args;
+        protected override void OnContinue() => base.OnStart(this.args);
+        protected override void OnPause() => base.OnStop();
         protected override void OnStart(string[] args)
         {
+            this.args = args;
             TimerCallback tcb = DoWork;
             _workTimer = new Timer(tcb, new object(), 0, _intervalInMinutes*60*1000);
             CheckForTimerChange();
@@ -163,9 +167,9 @@ namespace IISLogCleaner
             LogConfigChangeMsg("RootLogSearchDirectory", raw, _rootLogSearchDirectory);
         }
 
-        private static void LogConfigChangeMsg<T>(string configName,T rawValue,T newValue)
+        private void LogConfigChangeMsg<T>(string configName,T rawValue,T newValue)
         {
-            if (Equals(rawValue,newValue))
+            if (!Equals(rawValue,newValue))
             {
                 _eventLog.WriteEntry($"{configName} Change From {rawValue} To {newValue}", EventLogEntryType.Information);
             }
