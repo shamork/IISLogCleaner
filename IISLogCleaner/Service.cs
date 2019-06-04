@@ -40,7 +40,7 @@ namespace IISLogCleaner
         {
             this.args = args;
             TimerCallback tcb = DoWork;
-            _workTimer = new Timer(tcb, new object(), 0, _intervalInMinutes*60*1000);
+            _workTimer = new Timer(tcb, null, 0, _intervalInMinutes*60*1000);
             CheckForTimerChange();
 
             base.OnStart(args);
@@ -65,9 +65,9 @@ namespace IISLogCleaner
                 CheckForDirectoryChange();
                 CheckForLogDaysChange();
                 CheckForLowDiskThresholdChange();
-
                 if (Directory.Exists(_rootLogSearchDirectory))
                 {
+                    _eventLog.WriteEntry($"cleaning {_rootLogSearchDirectory}", EventLogEntryType.Information);
                     foreach (string path in Directory.GetFileSystemEntries(_rootLogSearchDirectory, "*.log", SearchOption.AllDirectories).OrderBy(File.GetLastAccessTimeUtc))
                     {
                         if (File.Exists(path) && (File.GetLastWriteTimeUtc(path) < DateTime.UtcNow.AddDays(_logDaysToKeep * -1) || LowDiskThresholdCrossed()))
@@ -76,13 +76,17 @@ namespace IISLogCleaner
                             {
                                 File.Delete(path);
                             }
-                            catch(Exception ex)
+                            catch (Exception ex)
                             {
                                 //For some reason we can't delete this. Let's leave it alone 
-                                _eventLog.WriteEntry("Error deleting log file: " + path + ". ex:"+ex, EventLogEntryType.Error);
+                                _eventLog.WriteEntry("Error deleting log file: " + path + ". ex:" + ex, EventLogEntryType.Error);
                             }
                         }
                     }
+                }
+                else
+                {
+                    _eventLog.WriteEntry($"{_rootLogSearchDirectory} not exists, nothing to do", EventLogEntryType.Warning);
                 }
 
                 CheckForTimerChange();
@@ -112,7 +116,7 @@ namespace IISLogCleaner
             {
                 LogConfigChangeMsg("CheckIntervalMinutes", _intervalInMinutes, tmpMinutes);
                 _intervalInMinutes = tmpMinutes;
-                _workTimer.Change(_intervalInMinutes*60*1000, _intervalInMinutes*60*1000);
+                _workTimer.Change(0, _intervalInMinutes*60*1000);
             }
         }
 
